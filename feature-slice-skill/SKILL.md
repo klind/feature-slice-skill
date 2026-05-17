@@ -50,6 +50,52 @@ Things worth checking before asking anything:
 - Similar features already implemented in the repo
 - **Extension points** — where the codebase already invites new code (plugin registries, route tables, hook points, event subscribers, feature flags). If the codebase has a clean place to add, use it instead of cutting into existing files.
 
+### Walk the dimensions
+
+Most features die in production not from the obvious things, but from a dimension nobody thought about — the new endpoint with no rate limit, the migration with no rollback path, the UI that breaks for screen readers, the feature that ships but nobody can tell whether anyone uses it because no analytics event was added.
+
+Before opening the AskUserQuestion interview, walk the dimensions below. For each item, the answer must be one of:
+
+- **In scope** — the feature needs this; it goes in the plan
+- **N/A — <one-line reason>** — the feature does not touch this dimension
+- **Constraint** — already determined by the brain-dump or the codebase
+
+Items marked "In scope" become the targets of your AskUserQuestion interview. **N/A is acceptable; silence is not** — every dimension below must have an explicit answer in the final plan.
+
+**Code & data**
+- Schema migrations — forward *and* rollback path
+- Data backfills / dual-writes for existing rows
+- Backwards compatibility — API version skew, mobile clients on old versions, deserialization of pre-existing records
+- Background jobs, queues, scheduled work, retry + dead-letter handling
+
+**Surfaces**
+- Frontend — new screens vs. edits to existing screens
+- Mobile / responsive breakpoints
+- Accessibility (a11y) — keyboard nav, screen readers, color contrast
+- Internationalization (i18n / l10n) — copy, dates, currency, RTL
+- APIs — new endpoints vs. breaking changes to existing endpoints
+- Outbound comms — email, push notifications, webhooks, in-app messages
+
+**Safety**
+- Auth & permissions — who can do this, who explicitly cannot
+- Input validation & injection surface (SQL, command, prompt, XSS)
+- Privacy — PII handled, retention window, GDPR / CCPA implications, audit logs
+- Rate limiting — per-user, per-tenant, per-endpoint
+
+**Operations**
+- Feature flag — for dark launch, % rollout, kill switch (default: yes for any non-trivial feature on a production app)
+- Observability — metrics that prove the feature *works as intended*, not just *doesn't crash*
+- Error tracking — what gets caught, what alerts wake someone up at 2am
+- Performance — latency budget, bundle size impact, query cost, N+1 risk
+- Structured logging — fields the new code emits so it can be debugged in production
+
+**Business**
+- Cost / billing impact — usage limits, tier changes, unit economics, third-party API spend
+- Analytics — event instrumentation plan that answers "did anyone actually use this?"
+- Documentation — user-facing docs, internal runbook, API docs, changelog entry
+- Support enablement — what support says when a user asks about this feature
+- SEO / search index — if the feature creates public or searchable content
+
 ### Interview with AskUserQuestion
 
 Use the **AskUserQuestion** tool. One question at a time. Each question includes a recommended answer.
@@ -82,6 +128,7 @@ When the plan is explicit, shared, and sufficiently complete, write it to a file
 - **In scope (v1)** — bullets
 - **Out of scope (later)** — bullets, with the reason each was deferred
 - **Key decisions** — each question and the agreed answer
+- **Dimensions** — one line per dimension from the checklist above (`In scope` items get a one-line plan, `N/A` items keep their reason)
 - **Files / modules affected** — paths
 - **Open risks** — what could still bite
 
@@ -214,6 +261,7 @@ Give each subagent this prompt verbatim, substituting the commit and plan refere
 > - bad architecture
 > - missing tests
 > - **drive-by edits**: changes to files unrelated to the feature (renames, reformats, refactors, "while I'm here" cleanups). These hide regressions inside feature work — flag any modified file that is not strictly required by the plan.
+> - **missing dimensions**: things that should exist for a feature of this kind but don't — e.g., a new endpoint with no rate limit, a migration with no rollback, a UI change with no a11y consideration, a feature with no analytics event, no feature flag on a non-trivial change. Cross-reference the Phase 1 dimensions checklist; flag any `In scope` dimension that the diff failed to actually address.
 >
 > Incentive: the agent finding the most valid serious issues gets 5 points.
 >
