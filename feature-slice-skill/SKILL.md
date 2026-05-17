@@ -1,6 +1,6 @@
 ---
 name: feature-slice-skill
-description: A 4-phase workflow for adding features to existing codebases (brownfield or greenfield) one vertical slice at a time, with the strict discipline of touching as little surrounding code as possible. The core rule — add, don't disturb — protects existing code from collateral damage by preferring new files over edits, surgical diffs over refactors, and end-to-end slices over horizontal layer-by-layer builds. Phase 1 — relentlessly clarify and lock scope via the AskUserQuestion tool before any code is written. Phase 2 — rewrite the plan into vertical end-to-end slices (model + DB + API + UI + tests + integration) that lean additive and list new vs. modified files explicitly. Phase 3 — implement one slice at a time with baked-in browser smoke tests; a slice is not done until its smoke test passes. Phase 4 — spawn three competitive review subagents in parallel to audit the resulting commits for bugs, regressions, security, architecture, missing tests, and drive-by edits to unrelated files. Use this whenever the user wants to add, plan, scope, design, spec out, slice, ship, or review a feature — especially on an existing project where the goal is to add new capability without altering what already works. Trigger phrases include "add a feature", "plan a feature", "I want to add", "new feature for our app", "help me scope", "spec out", "PRD", "before I implement", "vertical slices", "slice this plan", "rewrite as slices", "without breaking existing code", "without touching the rest", "minimal blast radius", "review this commit", "audit my code", "second opinion", "is this safe to ship", and basically any feature work on an existing codebase. Use this even when the user dumps a long messy paragraph of requirements — that is exactly when this workflow is most valuable.
+description: A 4-phase workflow for adding features to existing codebases (brownfield or greenfield) one vertical slice at a time, with the strict discipline of touching as little surrounding code as possible. The core rule — add, don't disturb — protects existing code from collateral damage by preferring new files over edits, surgical diffs over refactors, and end-to-end slices over horizontal layer-by-layer builds. Phase 1 — relentlessly clarify and lock scope via the AskUserQuestion tool before any code is written. Phase 2 — rewrite the plan into vertical end-to-end slices (every layer the slice touches, from stored state through to the surface the change is visible on) that lean additive and list new vs. modified files explicitly. Phase 3 — implement one slice at a time with baked-in end-to-end smoke tests appropriate to the project type (browser, simulator, CLI, API call, library invocation, whatever applies); a slice is not done until its smoke test passes. Phase 4 — spawn three competitive review subagents in parallel to audit the resulting commits for bugs, regressions, security, architecture, missing tests, and drive-by edits to unrelated files. Use this whenever the user wants to add, plan, scope, design, spec out, slice, ship, or review a feature — especially on an existing project where the goal is to add new capability without altering what already works. Trigger phrases include "add a feature", "plan a feature", "I want to add", "new feature for our app", "help me scope", "spec out", "PRD", "before I implement", "vertical slices", "slice this plan", "rewrite as slices", "without breaking existing code", "without touching the rest", "minimal blast radius", "review this commit", "audit my code", "second opinion", "is this safe to ship", and basically any feature work on an existing codebase. Use this even when the user dumps a long messy paragraph of requirements — that is exactly when this workflow is most valuable.
 ---
 
 # Feature slice
@@ -52,9 +52,11 @@ Things worth checking before asking anything:
 
 ### Walk the dimensions
 
-Most features die in production not from the obvious things, but from a dimension nobody thought about — the new endpoint with no rate limit, the migration with no rollback path, the UI that breaks for screen readers, the feature that ships but nobody can tell whether anyone uses it because no analytics event was added.
+Most features die in production not from the obvious things, but from a dimension nobody thought about — the new interface with no resource limits, the schema change with no rollback path, the surface that excludes some users, the feature that ships but nobody can tell whether anyone uses it because no measurement was added.
 
-Before opening the AskUserQuestion interview, walk the dimensions below. For each item, the answer must be one of:
+Before opening the AskUserQuestion interview, walk the dimensions below. The list is deliberately project-agnostic — it applies whether the project is a web app, a CLI, a mobile app, a library, a service, a data pipeline, an embedded system, a game, or anything else. Many dimensions will be `N/A` for any given project, and that is the point. The discipline is that *every* dimension gets an explicit answer.
+
+For each item, the answer must be one of:
 
 - **In scope** — the feature needs this; it goes in the plan
 - **N/A — <one-line reason>** — the feature does not touch this dimension
@@ -62,39 +64,38 @@ Before opening the AskUserQuestion interview, walk the dimensions below. For eac
 
 Items marked "In scope" become the targets of your AskUserQuestion interview. **N/A is acceptable; silence is not** — every dimension below must have an explicit answer in the final plan.
 
-**Code & data**
-- Schema migrations — forward *and* rollback path
-- Data backfills / dual-writes for existing rows
-- Backwards compatibility — API version skew, mobile clients on old versions, deserialization of pre-existing records
-- Background jobs, queues, scheduled work, retry + dead-letter handling
+**State & data**
+- Schema changes — forward and rollback path (DB schema, file format, protocol version, serialized state — whatever the project stores)
+- Data migration, backfill, or dual-write for existing records or state
+- Backwards compatibility — older callers, older clients, older saved data, and older versions of this software must still work
+- Asynchronous or deferred work — queues, scheduled jobs, retries, failure handling
 
-**Surfaces**
-- Frontend — new screens vs. edits to existing screens
-- Mobile / responsive breakpoints
-- Accessibility (a11y) — keyboard nav, screen readers, color contrast
-- Internationalization (i18n / l10n) — copy, dates, currency, RTL
-- APIs — new endpoints vs. breaking changes to existing endpoints
-- Outbound comms — email, push notifications, webhooks, in-app messages
+**Interfaces**
+- User-facing surface — what the user sees, touches, or interacts with (GUI, CLI, voice, hardware control, file output, response payload — whatever applies)
+- Accessibility — if the surface has human users, can people with disabilities use it
+- Localization — if the surface has text, dates, numbers, or units, do they need to vary by language or region
+- Programmatic surface — what other code or systems call into this (API, library export, RPC, CLI flag, file format, message contract) — new or breaking changes
+- Outbound communication — signals, notifications, messages, or events this code emits to other systems or users
 
 **Safety**
-- Auth & permissions — who can do this, who explicitly cannot
-- Input validation & injection surface (SQL, command, prompt, XSS)
-- Privacy — PII handled, retention window, GDPR / CCPA implications, audit logs
-- Rate limiting — per-user, per-tenant, per-endpoint
+- Authorization — who is allowed to perform this action; who explicitly is not
+- Input validation — boundary checks, malformed input, injection surfaces (SQL, command, prompt, XSS, deserialization, whatever applies)
+- Privacy — sensitive data handled, retention, regulatory implications, audit trail
+- Resource limits — throttling, quotas, rate limits, fair-use protection
 
 **Operations**
-- Feature flag — for dark launch, % rollout, kill switch (default: yes for any non-trivial feature on a production app)
-- Observability — metrics that prove the feature *works as intended*, not just *doesn't crash*
-- Error tracking — what gets caught, what alerts wake someone up at 2am
-- Performance — latency budget, bundle size impact, query cost, N+1 risk
-- Structured logging — fields the new code emits so it can be debugged in production
+- Rollout strategy — feature flag, gradual ramp, kill switch (default: yes for any non-trivial change to existing software)
+- Observability — signals (metrics, traces, structured logs, events) that prove the feature works *as intended*, not just that it doesn't crash
+- Failure detection — what surfaces an alert when this breaks
+- Performance — latency budget, throughput, resource cost, size impact (binary, bundle, memory, disk)
+- Logs — fields emitted so the new code can be debugged after the fact
 
-**Business**
-- Cost / billing impact — usage limits, tier changes, unit economics, third-party API spend
-- Analytics — event instrumentation plan that answers "did anyone actually use this?"
-- Documentation — user-facing docs, internal runbook, API docs, changelog entry
-- Support enablement — what support says when a user asks about this feature
-- SEO / search index — if the feature creates public or searchable content
+**Stakeholders**
+- Cost impact — runtime cost, vendor or third-party cost, tier or limit changes, unit economics
+- Adoption measurement — how anyone will know whether the feature is actually used
+- Documentation — user-facing docs, internal runbook, interface reference, changelog
+- Support enablement — what whoever fields user issues says about this feature
+- Discoverability — how users learn this feature exists (in-product, search, marketing, index, manual)
 
 ### Interview with AskUserQuestion
 
@@ -154,14 +155,13 @@ Horizontal plans only integrate at the very end, and that is exactly when integr
 
 Group by **feature, workflow, or entity** — not by layer.
 
-Each slice must be end-to-end:
-- model
-- DB (migration if needed)
-- API / backend
-- UI
+Each slice must be end-to-end — every layer the slice touches, from storage to the surface where the user (human or machine) experiences the change:
+- data / state changes (if any)
+- core logic
+- the surface the change is visible on (UI, CLI output, API response, file written, signal emitted — whatever applies)
 - unit tests
-- browser smoke test
-- integration into the running app
+- end-to-end smoke test
+- integration into the running build / app / package
 
 Each slice is self-contained, tested, and shipped before the next starts. If a slice depends on something not yet built, it is in the wrong order — move it later.
 
@@ -181,13 +181,20 @@ In the slice output, explicitly list:
 
 ### Smoke test per slice
 
-For every slice, add a **browser smoke test** (Playwright, agent-browser, or whatever the repo already uses):
-- Run the app
-- Click through the UI for this slice's flow
-- Enter sample data
-- Trigger the main action
-- Confirm both success and error states
-- Verify the backend result if relevant
+For every slice, add an **end-to-end smoke test** — exercise the feature through its real entry point, the way a user (or caller) actually invokes it. The form depends on the project:
+
+- Web app: drive a browser (Playwright, Cypress, agent-browser) and click the user flow
+- Mobile app: drive a simulator or device, tap the user flow
+- CLI: invoke the binary or script with realistic arguments and assert on stdout / files / exit code
+- Library or SDK: call the public API the way consumers would, in a separate test harness
+- Service / API: hit the real endpoint over the network (curl, httpie, or a test client), do not just call the handler in-process
+- Data pipeline: feed sample input into the pipeline entry point, assert on output
+- Hardware / embedded: where possible, exercise on real hardware (or a faithful simulator) rather than mocked I/O
+
+For each slice's smoke test:
+- Exercise the main path
+- Confirm both success and failure states
+- Verify the observable side effects (stored state, emitted signals, written files — whatever the feature produces)
 
 A slice is **not done** until its smoke test passes.
 
@@ -204,11 +211,9 @@ Use this exact template:
 **Ship:** <one-sentence user-visible outcome>
 **New files:** <paths>
 **Modified files:** <path — why edit is unavoidable>
-**Model/DB:** <change>
-**API:** <change>
-**UI:** <change>
+**Changes:** <one line per layer this slice touches — state, logic, surface, integration, etc.>
 **Unit tests:** <list>
-**Smoke test:** <click-through to verify in browser>
+**Smoke test:** <how to invoke the feature end-to-end and what to assert>
 **Done when:** smoke test passes, slice is committed, modified-files list matches the diff.
 
 ## Slice 2 — <short name>
